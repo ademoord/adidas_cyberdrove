@@ -1,126 +1,133 @@
+import cv2
 import pygame
-import sys
+from pygame.locals import *
 import time
-from moviepy.editor import VideoFileClip
 
 # Initialize Pygame
 pygame.init()
 
-# Set up the display
-width, height = 400, 800  # Portrait mode dimensions
-screen = pygame.display.set_mode((width, height))
+# Define screen dimensions and create main window
+screen_width, screen_height = 800, 600
+main_screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Virtual Running Experience")
 
-# Define colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
+# Define the speed in centimeters per click
+speed_cm_per_click = 120
+total_distance_cm = 0
+last_key_time = None
+click_intervals = []
+
+# Define click interval thresholds
+thresholds = {
+    '36kmph': 0.5,   # Slower clicks for normal speed
+    '72kmph': 0.3,   # Faster clicks for higher speed
+    '144kmph': 0.15, # Even faster clicks for higher speed
+    '288kmph': 0.075 # Fastest clicks for highest speed
+}
+
+# Load the videos using OpenCV
+main_videos = {
+    '36kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_36kmph.mp4'),
+    '72kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_72kmph.mp4'),
+    '144kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_144kmph.mp4'),
+    '288kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_288kmph.mp4')
+}
+
+side_videos = {
+    '36kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_36kmph.mp4'),
+    '72kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_72kmph.mp4'),
+    '144kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_144kmph.mp4'),
+    '288kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_288kmph.mp4')
+}
+
+current_main_video = main_videos['36kmph']
+current_side_video = side_videos['36kmph']
 
 # Load custom font
-custom_font_path = 'XYBER.otf'  # The custom font file name
-font_size = 12  # Slightly smaller font size
-font = pygame.font.Font(custom_font_path, font_size)
+font_path = 'static/font/JlsdatagothicRnc.otf'
+custom_font = pygame.font.Font(font_path, 12)
 
-# Load the video
-video_path = 'track__25fps_pace3.mp4'  # The updated video file name
-video = VideoFileClip(video_path).resize((width, height))
+# Function to switch videos based on click interval
+def switch_video(average_interval):
+    global current_main_video, current_side_video
+    if average_interval < thresholds['288kmph']:
+        current_main_video = main_videos['288kmph']
+        current_side_video = side_videos['288kmph']
+    elif average_interval < thresholds['144kmph']:
+        current_main_video = main_videos['144kmph']
+        current_side_video = side_videos['144kmph']
+    elif average_interval < thresholds['72kmph']:
+        current_main_video = main_videos['72kmph']
+        current_side_video = side_videos['72kmph']
+    else:
+        current_main_video = main_videos['36kmph']
+        current_side_video = side_videos['36kmph']
 
-# Initial variables
-speed_cm_per_click = 120  # Updated speed parameter
-speed_kph = 0
-total_distance_cm = 0
-is_playing = False
-video_start_time = None
-pause_time = None
-last_key_time = None
-playback_speed = 1.0
-
-# Function to convert KPH to MPH
-def kph_to_mph(kph):
-    return kph * 0.621371
-
-# Function to display speed
-def display_speed(screen, speed, total_distance):
-    speed_text = font.render(f"Speed: {speed_cm_per_click * speed_kph / 100000:.2f} KM", True, WHITE)
-    distance_text = font.render(f"Total: {total_distance / 100000:.2f} KM", True, WHITE)
-    screen.blit(speed_text, (10, 10))
-    screen.blit(distance_text, (width - 150, 10))  # Adjusted position to be more to the left
-    pygame.display.flip()
-
-# Function to display animation
-def display_animation(screen):
-    animation_text = font.render("You reached another KM!", True, WHITE)
-    screen.blit(animation_text, (10, height - 60))
-    pygame.display.flip()
-
-# Main game loop
+# Main loop
 running = True
 while running:
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+        if event.type == QUIT:
             running = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+        if event.type == KEYDOWN:
+            if event.key == K_RIGHT:
                 total_distance_cm += speed_cm_per_click
-                speed_kph += 1
-                if not is_playing:
-                    is_playing = True
-                    if pause_time:
-                        video_start_time += time.time() - pause_time
-                    else:
-                        video_start_time = time.time()
                 current_time = time.time()
                 if last_key_time is not None:
-                    elapsed_time = current_time - last_key_time
-                    if elapsed_time < 0.5:  # Adjust based on key press speed
-                        playback_speed = min(playback_speed + 0.1, 3.0)  # Cap at 3x speed
-                    else:
-                        playback_speed = max(1.0, playback_speed - 0.1)  # Minimum speed 1x
+                    click_interval = current_time - last_key_time
+                    click_intervals.append(click_interval)
+                    if len(click_intervals) > 10:  # Keep a rolling average of the last 10 clicks
+                        click_intervals.pop(0)
+                    average_interval = sum(click_intervals) / len(click_intervals)
+                    switch_video(average_interval)  # Switch video based on average click interval
                 last_key_time = current_time
-        elif event.type == pygame.KEYUP:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
-                is_playing = False
-                pause_time = time.time()
 
-    if is_playing:
-        current_time = (time.time() - video_start_time) * playback_speed
-        frame = video.get_frame(current_time % video.duration)
+    # Read frame from the current main video
+    ret_main, frame_main = current_main_video.read()
+    if not ret_main:
+        current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        ret_main, frame_main = current_main_video.read()
 
-        # Convert the frame to Pygame surface
-        frame = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+    # Read frame from the current side video
+    ret_side, frame_side = current_side_video.read()
+    if not ret_side:
+        current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        ret_side, frame_side = current_side_video.read()
 
-        # Display the frame
-        screen.blit(frame, (0, 0))
+    # Convert the main frame to a Pygame surface
+    frame_main = cv2.cvtColor(frame_main, cv2.COLOR_BGR2RGB)
+    frame_main = cv2.resize(frame_main, (screen_width // 2, screen_height))
+    frame_main_surface = pygame.surfarray.make_surface(frame_main.swapaxes(0, 1))
 
-        # Display the speed and total distance on top of the video
-        display_speed(screen, speed_kph, total_distance_cm)
+    # Convert the side frame to a Pygame surface
+    frame_side = cv2.cvtColor(frame_side, cv2.COLOR_BGR2RGB)
+    frame_side = cv2.resize(frame_side, (screen_width // 2, screen_height))
+    frame_side_surface = pygame.surfarray.make_surface(frame_side.swapaxes(0, 1))
 
-        # Display the animation if total distance is every 1 KM
-        if total_distance_cm % 100000 < speed_cm_per_click:
-            display_animation(screen)
+    # Update the main screen with the current main frame
+    main_screen.fill((0, 0, 0))  # Clear the screen
+    main_screen.blit(frame_main_surface, (0, 0))
 
-        # Update the display
-        pygame.display.flip()
+    # Update the side screen with the current side frame
+    main_screen.blit(frame_side_surface, (screen_width // 2, 0))
+
+    # Calculate speed
+    if click_intervals:
+        speed_kph = (speed_cm_per_click / 100) / (sum(click_intervals) / len(click_intervals)) * 3.6
     else:
-        # Display the last frame
-        if pause_time:
-            current_time = (pause_time - video_start_time) * playback_speed
-            frame = video.get_frame(current_time % video.duration)
+        speed_kph = 0
 
-            # Convert the frame to Pygame surface
-            frame = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+    # Update labels
+    speed_text = f"Speed: {speed_kph:.2f} KM/H"
+    distance_text = f"Total: {total_distance_cm / 100000:.2f} KM"
 
-            # Display the frame
-            screen.blit(frame, (0, 0))
+    speed_label = custom_font.render(speed_text, True, (255, 255, 255))
+    distance_label = custom_font.render(distance_text, True, (255, 255, 255))
 
-            # Display the speed and total distance on top of the video
-            display_speed(screen, speed_kph, total_distance_cm)
+    main_screen.blit(speed_label, (10, 10))
+    main_screen.blit(distance_label, (screen_width - 140, 10))
 
-            # Display the animation if total distance is every 1 KM
-            if total_distance_cm % 100000 < speed_cm_per_click:
-                display_animation(screen)
-
-            # Update the display
-            pygame.display.flip()
+    pygame.display.flip()
+    pygame.time.delay(30)
 
 pygame.quit()
-sys.exit()
