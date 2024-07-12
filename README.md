@@ -46,7 +46,7 @@ The Virtual Running Game is an interactive and engaging simulation where players
 
 5. **Run the game**:
     ```sh
-    python bismillah_rev06.py
+    python stop_and_go.py
     ```
 
 ## Game Rules
