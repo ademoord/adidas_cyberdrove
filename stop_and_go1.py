@@ -31,26 +31,26 @@ thresholds = {
 
 # Load the videos using OpenCV
 main_videos = {
-    '36kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_36kmph.mp4'),
-    '72kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_72kmph.mp4'),
-    '144kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_144kmph.mp4'),
-    '288kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_288kmph.mp4'),
-    'start': cv2.VideoCapture('static/video/Face_ScreenSaver.mp4')
+    '36kmph': cv2.VideoCapture('../static/video/track_oBo1_1920X1080_30fps_36kmph.mp4'),
+    '72kmph': cv2.VideoCapture('../static/video/track_oBo1_1920X1080_30fps_72kmph.mp4'),
+    '144kmph': cv2.VideoCapture('../static/video/track_oBo1_1920X1080_30fps_144kmph.mp4'),
+    '288kmph': cv2.VideoCapture('../static/video/track_oBo1_1920X1080_30fps_288kmph.mp4'),
+    'start': cv2.VideoCapture('../static/video/Face_ScreenSaver.mp4')
 }
 
 side_videos = {
-    '36kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_36kmph.mp4'),
-    '72kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_72kmph.mp4'),
-    '144kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_144kmph.mp4'),
-    '288kmph': cv2.VideoCapture('static/video/side_oAo1_HD_30fps_288kmph.mp4'),
-    'start': cv2.VideoCapture('static/video/side_screenSaver.mp4')
+    '36kmph': cv2.VideoCapture('../static/video/side_oAo1_HD_30fps_36kmph.mp4'),
+    '72kmph': cv2.VideoCapture('../static/video/side_oAo1_HD_30fps_72kmph.mp4'),
+    '144kmph': cv2.VideoCapture('../static/video/side_oAo1_HD_30fps_144kmph.mp4'),
+    '288kmph': cv2.VideoCapture('../static/video/side_oAo1_HD_30fps_288kmph.mp4'),
+    'start': cv2.VideoCapture('../static/video/side_screenSaver.mp4')
 }
 
 current_main_video = main_videos['start']
 current_side_video = side_videos['start']
 
 # Load custom font
-font_path = 'static/font/JlsdatagothicRnc.otf'
+font_path = '../static/font/JlsdatagothicRnc.otf'
 custom_font = pygame.font.Font(font_path, 12)
 
 # Function to switch videos based on click interval
