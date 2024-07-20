@@ -6,10 +6,15 @@ import time
 # Initialize Pygame
 pygame.init()
 
-# Define screen dimensions and create side window
-side_screen_width, side_screen_height = 1080, 1920
-side_screen = pygame.display.set_mode((side_screen_width, side_screen_height))
+# Define screen dimensions and create side window in full-screen mode
+info = pygame.display.Info()
+side_screen_width, side_screen_height = info.current_w, info.current_h
+side_screen = pygame.display.set_mode((side_screen_width, side_screen_height), FULLSCREEN)
 pygame.display.set_caption("Side Video Experience")
+
+# Bring the Pygame window to the front
+pygame.display.set_mode((side_screen_width, side_screen_height), FULLSCREEN)
+pygame.display.flip()
 
 # Define game variables
 speed_cm_per_click = 120
