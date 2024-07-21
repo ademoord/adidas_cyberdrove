@@ -2,13 +2,21 @@ import cv2
 import pygame
 from pygame.locals import *
 import time
+import os
 
 # Initialize Pygame
 pygame.init()
 
-# Define screen dimensions and create main window
-screen_width, screen_height = 3840, 1080
-main_screen = pygame.display.set_mode((screen_width, screen_height))
+# Define screen dimensions for both displays
+primary_screen_width, screen_height = 3840, 2160
+extended_screen_width = 3840
+combined_screen_width = primary_screen_width + extended_screen_width
+
+# Set the SDL_VIDEO_WINDOW_POS environment variable to position the window at the very left of the primary display
+os.environ['SDL_VIDEO_WINDOW_POS'] = f"0,0"
+
+# Create a borderless window that spans both displays
+main_screen = pygame.display.set_mode((combined_screen_width, screen_height), NOFRAME)
 pygame.display.set_caption("Virtual Running Experience")
 
 # Define game variables
@@ -77,7 +85,7 @@ def display_results():
     y_offset = screen_height // 2 - len(result_lines) * 20
     for line in result_lines:
         result_label = custom_font.render(line, True, (255, 255, 255))
-        main_screen.blit(result_label, (screen_width // 2 - result_label.get_width() // 2, y_offset))
+        main_screen.blit(result_label, (combined_screen_width // 2 - result_label.get_width() // 2, y_offset))
         y_offset += 40
     pygame.display.flip()
     time.sleep(result_display_time)
@@ -132,12 +140,12 @@ while True:
 
     # Convert the main frame to a Pygame surface
     frame_main = cv2.cvtColor(frame_main, cv2.COLOR_BGR2RGB)
-    frame_main = cv2.resize(frame_main, (screen_width // 2, screen_height))
+    frame_main = cv2.resize(frame_main, (combined_screen_width // 2, screen_height))
     frame_main_surface = pygame.surfarray.make_surface(frame_main.swapaxes(0, 1))
 
     # Convert the side frame to a Pygame surface
     frame_side = cv2.cvtColor(frame_side, cv2.COLOR_BGR2RGB)
-    frame_side = cv2.resize(frame_side, (screen_width // 2, screen_height))
+    frame_side = cv2.resize(frame_side, (combined_screen_width // 2, screen_height))
     frame_side_surface = pygame.surfarray.make_surface(frame_side.swapaxes(0, 1))
 
     # Update the main screen with the current main frame
@@ -145,7 +153,7 @@ while True:
     main_screen.blit(frame_main_surface, (0, 0))
 
     # Update the side screen with the current side frame
-    main_screen.blit(frame_side_surface, (screen_width // 2, 0))
+    main_screen.blit(frame_side_surface, (combined_screen_width // 2, 0))
 
     # Calculate speed
     if click_intervals:
@@ -164,7 +172,7 @@ while True:
         distance_label = custom_font.render(distance_text, True, (255, 255, 255))
 
         main_screen.blit(speed_label, (10, 10))
-        main_screen.blit(distance_label, (screen_width - 140, 10))
+        main_screen.blit(distance_label, (combined_screen_width - 140, 10))
 
     pygame.display.flip()
     pygame.time.delay(30)
