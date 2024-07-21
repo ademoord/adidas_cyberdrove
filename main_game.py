@@ -1,6 +1,6 @@
 import cv2
 import pygame
-from pygame.locals import *
+from pygame.locals import MOUSEBUTTONDOWN, FULLSCREEN, QUIT
 import time
 import json
 
@@ -40,13 +40,13 @@ thresholds = {
 
 # Load the videos using OpenCV
 main_videos = {
-    '36kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_36kmph.mp4'),
-    '72kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_72kmph.mp4'),
-    '144kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_144kmph.mp4'),
-    '288kmph': cv2.VideoCapture('static/video/track_oBo1_1920X1080_30fps_288kmph.mp4'),
-    'start': cv2.VideoCapture('static/video/Face_ScreenSaver.mp4'),
-    'track_start': cv2.VideoCapture('static/video/track_Start.mp4'),
-    'track_finish': cv2.VideoCapture('static/video/track_Finish.mp4')
+    '36kmph': cv2.VideoCapture('static/video/face_36.mp4'),
+    '72kmph': cv2.VideoCapture('static/video/face_72.mp4'),
+    '144kmph': cv2.VideoCapture('static/video/face_144.mp4'),
+    '288kmph': cv2.VideoCapture('static/video/face_288.mp4'),
+    'start': cv2.VideoCapture('static/video/face_saver.mp4'),
+    'track_start': cv2.VideoCapture('static/video/face_start.mp4'),
+    'track_finish': cv2.VideoCapture('static/video/face_finish.mp4')
 }
 
 current_main_video = main_videos['start']
@@ -154,7 +154,7 @@ def display_start_video_data():
         result_text_speed = f"{average_speed_kph:.2f} KM/H"
         result_lines_speed = result_text_speed.split("\n")
         x_offset_speed = main_screen_width // 2 - 460  # Move this text further left
-        y_offset_speed = main_screen_height // 2 - len(result_lines_speed) * 110  # Same vertical position
+        y_offset_speed = main_screen_height // 2 - len(result_lines_speed) * 105  # Same vertical position
         for line in result_lines_speed:
             result_label_speed = custom_font.render(line, True, (255, 255, 255))
             result_label_speed = pygame.transform.rotate(result_label_speed, 270)  # Rotate the text
