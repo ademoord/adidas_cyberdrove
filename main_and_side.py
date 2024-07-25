@@ -8,8 +8,8 @@ import os
 pygame.init()
 
 # Define screen dimensions for both displays
-primary_screen_width, screen_height = 3840, 2160
-extended_screen_width = 3840
+primary_screen_width, screen_height = 1366, 768
+extended_screen_width = 1366
 combined_screen_width = primary_screen_width + extended_screen_width
 
 # Set the SDL_VIDEO_WINDOW_POS environment variable to position the window at the very left of the primary display
