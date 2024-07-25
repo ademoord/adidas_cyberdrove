@@ -1,0 +1,447 @@
+import cv2
+import pygame
+from pygame.locals import MOUSEBUTTONDOWN, FULLSCREEN, QUIT, NOFRAME
+import time
+import os
+import json
+
+# Initialize Pygame
+pygame.init()
+
+# Define screen dimensions for both displays
+# primary_screen_width, screen_height = 3840, 2160
+primary_screen_width, screen_height = 1366, 768
+# extended_screen_width = 3840
+extended_screen_width = 1366
+combined_screen_width = primary_screen_width + extended_screen_width
+
+# Set the SDL_VIDEO_WINDOW_POS environment variable to position the window at the very left of the primary display
+os.environ['SDL_VIDEO_WINDOW_POS'] = f"0,0"
+
+# Create a borderless window that spans both displays
+main_screen = pygame.display.set_mode((combined_screen_width, screen_height), NOFRAME)
+pygame.display.set_caption("Virtual Running Experience")
+
+# Define game variables
+speed_cm_per_click = 5000
+total_distance_cm = 0
+max_speed_kph = 0
+click_intervals = []
+running = False
+game_start_time = None
+game_duration = 33
+result_display_time = 15
+last_key_time = None  # Initialize last_key_time
+playing_start_video = False
+data_displayed = False  # Track if data is displayed
+
+# Countdown timer variables
+countdown_time = 30  # Start with 30 seconds countdown
+countdown_start_time = None
+
+# Define thresholds for switching videos
+thresholds = {
+    '288kmph': 0.125,  # Example threshold for 288kmph
+    '144kmph': 0.25,   # Example threshold for 144kmph
+    '72kmph': 0.5,     # Example threshold for 72kmph
+    '36kmph': 1.0      # Example threshold for 36kmph
+}
+
+# Load the videos using OpenCV
+main_videos = {
+    '36kmph': cv2.VideoCapture('static/video/face_36.mp4'),
+    '72kmph': cv2.VideoCapture('static/video/face_72.mp4'),
+    '144kmph': cv2.VideoCapture('static/video/face_144.mp4'),
+    '288kmph': cv2.VideoCapture('static/video/face_288.mp4'),
+    'start': cv2.VideoCapture('static/video/face_saver.mp4'),
+    'track_start': cv2.VideoCapture('static/video/face_start.mp4'),
+    'track_finish': cv2.VideoCapture('static/video/face_finish.mp4')
+}
+
+
+side_videos = {
+    '36kmph': cv2.VideoCapture('static/video/side_36.mp4'),
+    '72kmph': cv2.VideoCapture('static/video/side_72.mp4'),
+    '144kmph': cv2.VideoCapture('static/video/side_144.mp4'),
+    '288kmph': cv2.VideoCapture('static/video/side_288.mp4'),
+    'start': cv2.VideoCapture('static/video/side_saver.mp4'),
+    'track_start': cv2.VideoCapture('static/video/side_start.mp4'),
+    'track_finish': cv2.VideoCapture('static/video/side_finish.mp4')
+}
+
+current_main_video = main_videos['start']
+current_side_video = side_videos['start']
+result_main_video = cv2.VideoCapture('static/video/face_saver.mp4')
+result_side_video = cv2.VideoCapture('static/video/side_saver.mp4')
+
+# Load custom font
+font_path = 'static/font/JlsdatagothicRnc.otf'
+custom_font = pygame.font.Font(font_path, 40)
+
+# Function to switch videos based on click interval
+def switch_video(average_interval):
+    global current_main_video, current_side_video
+    if average_interval < thresholds['288kmph']:
+        current_main_video = main_videos['288kmph']
+        current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+        current_side_video = side_videos['288kmph']
+        current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+    elif average_interval < thresholds['144kmph']:
+        current_main_video = main_videos['144kmph']
+        current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+        current_side_video = side_videos['144kmph']
+        current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+    elif average_interval < thresholds['72kmph']:
+        current_main_video = main_videos['72kmph']
+        current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+        current_side_video = side_videos['72kmph']
+        current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+    else:
+        current_main_video = main_videos['36kmph']
+        current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+        current_side_video = side_videos['36kmph']
+        current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to the first frame
+
+
+def calculate_speed(average_interval):
+    # Calculate speed in KM/H based on average click interval
+    return (speed_cm_per_click / average_interval) * 0.036
+
+def load_data_from_json():
+    try:
+        with open('records.json', 'r') as file:
+            data = json.load(file)
+        # Assuming the date key is the current date; you can adjust if needed
+        date_key = time.strftime('%Y-%m-%d')
+        return data.get(date_key, {'total_distance_cm': 0, 'average_speed_kph': 0})
+    except FileNotFoundError:
+        print("File not found.")
+        data = {}
+
+def display_results():
+    end_time = time.time() + result_display_time
+    while time.time() < end_time:
+        ret_main, frame_main = result_main_video.read()
+        if not ret_main:
+            result_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret_main, frame_main = result_main_video.read() 
+
+        frame_main = cv2.cvtColor(frame_main, cv2.COLOR_BGR2RGB)
+        frame_main = cv2.resize(frame_main, (primary_screen_width, screen_height))
+        frame_main_surface = pygame.surfarray.make_surface(frame_main.swapaxes(0, 1))
+
+        main_screen.fill((0, 0, 0))  # Clear the screen
+        main_screen.blit(frame_side_surface, (0, 0))
+
+        # Display total distance text
+        result_text_distance = f"{total_distance_cm / 100000:.2f} KM"
+        result_lines_distance = result_text_distance.split("\n")
+        x_offset_distance = primary_screen_width // 2 - 350  # Adjust this value to move the text to the left
+        y_offset_distance = screen_height // 2 - len(result_lines_distance) * 60  # Adjusted for larger text
+        for line in result_lines_distance:
+            result_label_distance = custom_font.render(line, True, (255, 255, 255))
+            result_label_distance = pygame.transform.rotate(result_label_distance, 270)  # Rotate the text
+            main_screen.blit(result_label_distance, (x_offset_distance, y_offset_distance))
+            y_offset_distance += 120  # Adjusted for larger text
+
+        # Display average speed text
+        if click_intervals:  # Check if click_intervals is not empty
+            average_interval = sum(click_intervals) / len(click_intervals)
+            result_text_speed = f"{calculate_speed(average_interval):.2f} KM/H"
+        else:
+            result_text_speed = "Speed: 0.00 KM/H"  # Default value if no intervals are available
+
+        result_lines_speed = result_text_speed.split("\n")
+        x_offset_speed = primary_screen_width // 2 - 550  # Move this text further left
+        y_offset_speed = screen_height // 2 - len(result_lines_speed) * 105  # Same vertical position
+        for line in result_lines_speed:
+            result_label_speed = custom_font.render(line, True, (255, 255, 255))
+            result_label_speed = pygame.transform.rotate(result_label_speed, 270)  # Rotate the text
+            main_screen.blit(result_label_speed, (x_offset_speed, y_offset_speed))
+            y_offset_speed += 120  # Adjusted for larger text
+
+        pygame.display.flip()
+        pygame.time.delay(33)
+
+def display_start_video_data():
+    countdown_time = 30  # Start with 30 seconds countdown
+    countdown_start_time = None
+
+    # Load data from JSON
+    data = load_data_from_json()
+    total_distance_cm = data['total_distance_cm']
+    average_speed_kph = data['average_speed_kph']
+    
+    end_time = time.time() + result_display_time
+    while time.time() < end_time:
+        # Read and process main and side video frames
+        ret_main, frame_main = current_main_video.read()
+        ret_side, frame_side = current_side_video.read()
+
+        if not ret_main or not ret_side:
+            if not ret_main:
+                current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret_main, frame_main = current_main_video.read()
+            if not ret_side:
+                current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret_side, frame_side = current_side_video.read()
+
+        # Convert frames to Pygame surfaces
+        frame_main = cv2.cvtColor(frame_main, cv2.COLOR_BGR2RGB)
+        frame_main = cv2.resize(frame_main, (primary_screen_width, screen_height))
+        frame_main_surface = pygame.surfarray.make_surface(frame_main.swapaxes(0, 1))
+
+        frame_side = cv2.cvtColor(frame_side, cv2.COLOR_BGR2RGB)
+        frame_side = cv2.resize(frame_side, (combined_screen_width // 2, screen_height))
+        frame_side_surface = pygame.surfarray.make_surface(frame_side.swapaxes(0, 1))
+
+        # Clear the screen
+        main_screen.fill((0, 0, 0))
+        
+        # Display main video
+        main_screen.blit(frame_main_surface, (0, 0))
+        
+        # Display side video
+        main_screen.blit(frame_side_surface, (primary_screen_width, 0))
+
+        # Display countdown timer
+        # if countdown_start_time is None:
+        #     countdown_start_time = time.time()
+        # elapsed_time = time.time() - countdown_start_time
+        # remaining_time = max(0, int(countdown_time - elapsed_time))
+        # countdown_text = f"Time left: {remaining_time}s"
+        # lines_countdown = countdown_text.split("\n")
+        # x_offset_countdown = primary_screen_width // 2 + 350  # Adjust this value to move the text to the left
+        # y_offset_countdown = screen_height // 2 - len(lines_countdown) * 60  # Adjusted for larger text
+        # for line in lines_countdown:
+        #     label_countdown = custom_font.render(line, True, (255, 255, 255))
+        #     label_countdown = pygame.transform.rotate(label_countdown, 270)  # Rotate the text
+        #     main_screen.blit(label_countdown, (x_offset_countdown, y_offset_countdown))
+        #     y_offset_countdown += 120  # Adjusted for larger text
+
+        # Display total distance text
+        result_text_distance = f"{total_distance_cm / 100000:.2f} KM"
+        result_lines_distance = result_text_distance.split("\n")
+        x_offset_distance = primary_screen_width // 2 - 350  # Adjust this value to move the text to the left
+        y_offset_distance = screen_height // 2 - len(result_lines_distance) * 60  # Adjusted for larger text
+        for line in result_lines_distance:
+            result_label_distance = custom_font.render(line, True, (255, 255, 255))
+            result_label_distance = pygame.transform.rotate(result_label_distance, 270)  # Rotate the text
+            main_screen.blit(result_label_distance, (x_offset_distance, y_offset_distance))
+            y_offset_distance += 120  # Adjusted for larger text
+
+        # Display average speed text
+        result_text_speed = f"{average_speed_kph:.2f} KM/H"
+        result_lines_speed = result_text_speed.split("\n")
+        x_offset_speed = primary_screen_width // 2 - 550  # Move this text further left
+        y_offset_speed = screen_height // 2 - len(result_lines_speed) * 105  # Same vertical position
+        for line in result_lines_speed:
+            result_label_speed = custom_font.render(line, True, (255, 255, 255))
+            result_label_speed = pygame.transform.rotate(result_label_speed, 270)  # Rotate the text
+            main_screen.blit(result_label_speed, (x_offset_speed, y_offset_speed))
+            y_offset_speed += 120  # Adjusted for larger text
+
+        pygame.display.flip()
+        pygame.time.delay(33)
+
+# Main loop
+while True:
+    for event in pygame.event.get():
+        if event.type == QUIT:
+            pygame.quit()
+            exit()
+        elif event.type == MOUSEBUTTONDOWN:
+            if not running:
+                if event.button == 3:  # Right mouse button
+                    running = True
+                    game_start_time = time.time()
+                    current_main_video = main_videos['track_start']
+                    current_side_video = side_videos['track_start']
+                    playing_start_video = True
+                    last_key_time = time.time()
+                continue
+            if event.button == 1 and not playing_start_video:  # Left mouse button
+                total_distance_cm += speed_cm_per_click
+                total_distance_km = total_distance_cm / 100000  # Convert to kilometers
+                click_time = time.time()
+                if last_key_time is not None:
+                    click_interval = current_time - last_key_time
+                    click_intervals.append(click_interval)
+                    last_key_time = click_time
+
+                    if len(click_intervals) > 0:
+                        # click_intervals.pop(0)
+                        average_interval = sum(click_intervals) / len(click_intervals)
+                        speed_kph = calculate_speed(average_interval)
+                        max_speed_kph = max(max_speed_kph, speed_kph)
+                        switch_video(average_interval)
+                # last_key_time = current_time
+
+    # Update game state
+    if running:
+        elapsed_time = time.time() - game_start_time
+
+        if playing_start_video:
+            if elapsed_time < 5:
+                # Read and process main and side video frames
+                ret_main, frame_main = current_main_video.read()
+                ret_side, frame_side = current_side_video.read()
+
+                if not ret_main or not ret_side:
+                    current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret_main, frame_main = current_main_video.read()
+                    ret_side, frame_side = current_side_video.read()
+
+                # Convert frames to Pygame surfaces
+                frame_main = cv2.cvtColor(frame_main, cv2.COLOR_BGR2RGB)
+                frame_main = cv2.resize(frame_main, (combined_screen_width // 2, screen_height))
+                frame_main_surface = pygame.surfarray.make_surface(frame_main.swapaxes(0, 1))
+
+                frame_side = cv2.cvtColor(frame_side, cv2.COLOR_BGR2RGB)
+                frame_side = cv2.resize(frame_side, (combined_screen_width // 2, screen_height))
+                frame_side_surface = pygame.surfarray.make_surface(frame_side.swapaxes(0, 1))
+
+                main_screen.fill((0, 0, 0))  # Clear the screen
+                main_screen.blit(frame_main_surface, (0, 0))
+                main_screen.blit(frame_side_surface, (combined_screen_width // 2, 0))
+            else:
+                playing_start_video = False
+                current_main_video = main_videos['36kmph']
+                current_side_video = side_videos['36kmph']
+        elif elapsed_time >= game_duration:
+            running = False
+            result_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset the result video to the first frame
+            display_results()
+            total_distance_cm = 0
+            max_speed_kph = 0
+            click_intervals = []
+            data_displayed = False  # Reset the data displayed flag
+            current_main_video = main_videos['start']  # Reset to the start video
+            current_side_video = side_videos['start']  # Reset to the start video
+            playing_start_video = False  # Ensure start video is not playing
+
+        # Read and process main and side video frames
+        ret_main, frame_main = current_main_video.read()
+        ret_side, frame_side = current_side_video.read()
+
+        if not ret_main or not ret_side:
+            current_main_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            current_side_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret_main, frame_main = current_main_video.read()
+            ret_side, frame_side = current_side_video.read()
+
+        # Convert frames to Pygame surfaces
+        frame_main = cv2.cvtColor(frame_main, cv2.COLOR_BGR2RGB)
+        frame_main = cv2.resize(frame_main, (primary_screen_width, screen_height))
+        frame_main_surface = pygame.surfarray.make_surface(frame_main.swapaxes(0, 1))
+
+        frame_side = cv2.cvtColor(frame_side, cv2.COLOR_BGR2RGB)
+        frame_side = cv2.resize(frame_side, (combined_screen_width // 2, screen_height))
+        frame_side_surface = pygame.surfarray.make_surface(frame_side.swapaxes(0, 1))
+
+        main_screen.blit(frame_main_surface, (0, 0))
+        main_screen.blit(frame_side_surface, (combined_screen_width // 2, 0))
+
+        # Display speed and distance
+        if click_intervals:
+            speed_kph = (speed_cm_per_click / 100) / (sum(click_intervals) / len(click_intervals)) * 3.6
+            if speed_kph > max_speed_kph:
+                max_speed_kph = speed_kph
+        else:
+            speed_kph = 0
+
+        # speed_text = f"Speed: {speed_kph:.2f} KM/H"
+        # x_offset_speed_live = primary_screen_width // 2 + 350  # Adjust this value to move the text to the left
+        # y_offset_speed_live = primary_screen_width // 2 + 350  # Adjust this value to move the text to the left
+        # distance_text = f"Total: {total_distance_cm / 100000:.2f} KM"
+        # speed_label = custom_font.render(speed_text, True, (255, 255, 255))
+        # distance_label = custom_font.render(distance_text, True, (255, 255, 255))
+        # main_screen.blit(speed_label, (10, 10))
+        # main_screen.blit(distance_label, (combined_screen_width - 140, 10))
+        
+        # Display countdown timer
+        if countdown_start_time is None:
+            countdown_start_time = time.time()
+        elapsed_time = time.time() - countdown_start_time
+        remaining_time = max(0, int(countdown_time - elapsed_time))
+
+        # Text to display
+        speed_text = f"{speed_kph:.2f} KM/H"
+        lines_speed = speed_text.split("\n")
+        x_offset_speed = primary_screen_width // 2 - 350  # Adjust this value to move the text to the left
+        y_offset_speed = screen_height // 2 - len(lines_speed) * 60  # Adjusted for larger text
+        for line in lines_speed:
+            label_speed = custom_font.render(line, True, (255, 255, 255))
+            label_speed = pygame.transform.rotate(label_speed, 270)  # Rotate the text
+            main_screen.blit(label_speed, (x_offset_speed, y_offset_speed))
+            y_offset_speed += 120  # Adjusted for larger text
+
+        # distance_text = f"Total: {total_distance_cm / 100000:.2f} KM"
+        countdown_text = f"{remaining_time}s"
+        lines_countdown = countdown_text.split("\n")
+        x_offset_countdown = primary_screen_width // 2 + 350  # Adjust this value to move the text to the right
+        y_offset_countdown = screen_height // 2 - len(lines_speed) * 60  # Adjusted for larger text
+        for line in lines_countdown:
+            label_countdown = custom_font.render(line, True, (255, 255, 255))
+            label_countdown = pygame.transform.rotate(label_countdown, 270)  # Rotate the text
+            main_screen.blit(label_countdown, (x_offset_countdown, y_offset_countdown))
+            y_offset_countdown += 650  # Adjusted for larger text
+
+        # =========================================== JAGA =====================================================
+        # lines_countdown = countdown_text.split("\n")
+        # x_offset_countdown = primary_screen_width // 2 + 350  # Adjust this value to move the text to the left
+        # y_offset_countdown = screen_height // 2 - len(lines_countdown) * 60  # Adjusted for larger text
+        # for line in lines_countdown:
+        #     label_countdown = custom_font.render(line, True, (255, 255, 255))
+        #     label_countdown = pygame.transform.rotate(label_countdown, 270)  # Rotate the text
+        #     main_screen.blit(label_countdown, (x_offset_countdown, y_offset_countdown))
+        #     y_offset_countdown += 120  # Adjusted for larger text
+        # =========================================== JAGA =====================================================
+
+        # Calculate text dimensions
+        # text_width_speed = custom_font.size(speed_text)[0]
+        # text_height_speed = custom_font.size(speed_text)[1]
+        # text_width_distance = custom_font.size(distance_text)[0]
+        # text_height_distance = custom_font.size(distance_text)[1]
+        # text_width_countdown = custom_font.size(countdown_text)[0]
+        # text_height_countdown = custom_font.size(countdown_text)[1]
+
+        # Calculate center positions
+        x_center = primary_screen_width // 2
+        y_center = screen_height // 2
+
+        # Adjust these offsets to move the text left or right
+        horizontal_offset = 350
+        vertical_offset = 0  # Adjust if needed
+
+        # Calculate x and y positions for the text
+        # x_offset_speed_live = x_center - (text_width_speed // 2) - horizontal_offset
+        # y_offset_speed_live = y_center - (text_height_speed // 2) - vertical_offset
+        # x_offset_distance_live = x_center - (text_width_distance // 2) - horizontal_offset
+        # y_offset_distance_live = y_center - (text_height_distance // 2) - vertical_offset
+        # x_offset_countdown_live = x_center - (text_width_countdown // 2) - horizontal_offset
+        # y_offset_countdown_live = y_center - (text_height_countdown // 2) - vertical_offset
+
+        # Create text labels
+        # speed_label = custom_font.render(speed_text, True, (255, 255, 255))
+        # distance_label = custom_font.render(distance_text, True, (255, 255, 255))
+        # countdown_label = custom_font.render(countdown_text, True, (255, 255, 255))
+
+        # Blit text onto the screen
+        # main_screen.blit(speed_label, (x_offset_speed_live, y_offset_speed_live))
+        # main_screen.blit(distance_label, (x_offset_distance_live, y_offset_distance_live))
+        # main_screen.blit(countdown_label, (x_offset_countdown_live, y_offset_countdown_live))
+
+
+        pygame.display.flip()
+
+        if not running and not data_displayed:
+            display_start_video_data()
+            data_displayed = True
+    else:
+        # Display start video data if not running and data not displayed
+        display_start_video_data()
+        data_displayed = True
+
+    pygame.time.delay(33)
