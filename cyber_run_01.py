@@ -42,11 +42,18 @@ countdown_time = 30  # Start with 30 seconds countdown
 countdown_start_time = None
 
 # Define thresholds for switching videos
+# thresholds = {
+#     '288kmph': 0.125,  # Example threshold for 288kmph
+#     '144kmph': 0.25,   # Example threshold for 144kmph
+#     '72kmph': 0.5,     # Example threshold for 72kmph
+#     '36kmph': 1.0      # Example threshold for 36kmph
+# }
+
 thresholds = {
-    '288kmph': 0.125,  # Example threshold for 288kmph
-    '144kmph': 0.25,   # Example threshold for 144kmph
-    '72kmph': 0.5,     # Example threshold for 72kmph
-    '36kmph': 1.0      # Example threshold for 36kmph
+    '288kmph': 0.25,  # Example threshold for 288kmph
+    '144kmph': 0.5,   # Example threshold for 144kmph
+    '72kmph': 1.0,     # Example threshold for 72kmph
+    # '36kmph': 1.0      # Example threshold for 36kmph
 }
 
 # Load the videos using OpenCV
@@ -95,7 +102,7 @@ def switch_video(average_interval):
 
 def calculate_speed(average_interval):
     # Calculate speed in KM/H based on average click interval
-    return (speed_cm_per_click / average_interval) * 0.036
+    return (speed_cm_per_click / average_interval) * 0.016
 
 def load_data_from_json():
     try:
@@ -105,10 +112,10 @@ def load_data_from_json():
         if data:
             return next(iter(data.values()))
         else:
-            return {'total_distance_cm': 0, 'average_speed_kph': 0}
+            return {'total_distance_cm': 53.7, 'average_speed_kph': 39400.45}
     except FileNotFoundError:
         print("File not found.")
-        return {'total_distance_cm': 0, 'average_speed_kph': 0}
+        return {'total_distance_cm': 53.7, 'average_speed_kph': 39400.45}
 
 def display_results():
     end_time = time.time() + result_display_time

@@ -114,16 +114,29 @@ def calculate_speed(average_interval):
     # Calculate speed in KM/H based on average click interval
     return (speed_cm_per_click / average_interval) * 0.036
 
+# def load_data_from_json():
+#     try:
+#         with open('records.json', 'r') as file:
+#             data = json.load(file)
+#         # Assuming the date key is the current date; you can adjust if needed
+#         date_key = time.strftime('%Y-%m-%d')
+#         return data.get(date_key, {'total_distance_cm': 0, 'average_speed_kph': 0})
+#     except FileNotFoundError:
+#         print("File not found.")
+#         data = {}
+
 def load_data_from_json():
     try:
         with open('records.json', 'r') as file:
             data = json.load(file)
-        # Assuming the date key is the current date; you can adjust if needed
-        date_key = time.strftime('%Y-%m-%d')
-        return data.get(date_key, {'total_distance_cm': 0, 'average_speed_kph': 0})
+        # Get any existing data regardless of the date
+        if data:
+            return next(iter(data.values()))
+        else:
+            return {'total_distance_cm': 53.7, 'average_speed_kph': 39400.45}
     except FileNotFoundError:
         print("File not found.")
-        data = {}
+        return {'total_distance_cm': 53.7, 'average_speed_kph': 39400.45}
 
 def display_results():
     end_time = time.time() + result_display_time
@@ -358,3 +371,11 @@ while True:
         data_displayed = True
 
     pygame.time.delay(33)
+
+    # Record the data and replace the existing data in records.json
+    data_to_save = {
+        'total_distance_cm': total_distance_cm,
+        'average_speed_kph': max_speed_kph
+    }
+    with open('records.json', 'w') as file:
+        json.dump(data_to_save, file)
